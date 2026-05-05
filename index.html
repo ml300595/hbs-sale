@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Move-Out Sale</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --work:    #3b82f6;
+      --bedroom: #8b5cf6;
+      --living:  #10b981;
+      --kitchen: #f59e0b;
+      --sold-bg: rgba(0,0,0,0.55);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #f5f5f0;
+      color: #1a1a1a;
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ─────────────────────────────────── */
+    header {
+      background: #1a1a1a;
+      color: #fff;
+      padding: 2.5rem 1.5rem 2rem;
+      text-align: center;
+    }
+    header h1 { font-size: clamp(1.8rem, 5vw, 3rem); font-weight: 800; letter-spacing: -0.02em; }
+    header p  { margin-top: .5rem; opacity: .7; font-size: .95rem; }
+
+    /* ── FILTER BAR ──────────────────────────────── */
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .5rem;
+      justify-content: center;
+      padding: 1.25rem 1rem;
+      background: #fff;
+      border-bottom: 1px solid #e5e5e5;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .filter-btn {
+      border: 2px solid transparent;
+      background: #f0f0ed;
+      border-radius: 2rem;
+      padding: .35rem .9rem;
+      font-size: .82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .filter-btn:hover          { background: #e5e5e0; }
+    .filter-btn.active         { background: #1a1a1a; color: #fff; }
+    .filter-btn[data-cat="Work"]    { --accent: var(--work); }
+    .filter-btn[data-cat="Bedroom"] { --accent: var(--bedroom); }
+    .filter-btn[data-cat="Living"]  { --accent: var(--living); }
+    .filter-btn[data-cat="Kitchen"] { --accent: var(--kitchen); }
+    .filter-btn.active[data-cat]    { background: var(--accent); border-color: var(--accent); }
+
+    /* ── GRID ────────────────────────────────────── */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+      gap: 1.25rem;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1.5rem 1rem 3rem;
+    }
+
+    /* ── CARD ────────────────────────────────────── */
+    /*
+      ╔══════════════════════════════════════════╗
+      ║  HOW TO MARK AN ITEM AS SOLD             ║
+      ║  Find the card below and change:         ║
+      ║    data-sold="false"  →  data-sold="true"║
+      ╚══════════════════════════════════════════╝
+    */
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06);
+      display: flex;
+      flex-direction: column;
+      transition: transform .15s, box-shadow .15s;
+      position: relative;
+    }
+    .card:hover { transform: translateY(-3px); box-shadow: 0 4px 12px rgba(0,0,0,.12), 0 12px 32px rgba(0,0,0,.1); }
+
+    /* SOLD state */
+    .card[data-sold="true"] { opacity: .6; }
+    .card[data-sold="true"]::after {
+      content: "SOLD";
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      font-weight: 900;
+      letter-spacing: .15em;
+      color: #fff;
+      background: var(--sold-bg);
+      border-radius: 14px;
+    }
+
+    /* Card image */
+    .card-img {
+      width: 100%;
+      aspect-ratio: 4/3;
+      object-fit: cover;
+      background: #e8e8e3;
+      display: block;
+    }
+    .card-img-placeholder {
+      width: 100%;
+      aspect-ratio: 4/3;
+      background: #e8e8e3;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #999;
+      font-size: .85rem;
+    }
+
+    /* Card body */
+    .card-body { padding: 1rem; flex: 1; display: flex; flex-direction: column; gap: .6rem; }
+
+    .badge {
+      display: inline-block;
+      font-size: .7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      padding: .2rem .55rem;
+      border-radius: 999px;
+      color: #fff;
+    }
+    .badge-Work    { background: var(--work); }
+    .badge-Bedroom { background: var(--bedroom); }
+    .badge-Living  { background: var(--living); }
+    .badge-Kitchen { background: var(--kitchen); }
+
+    .card-title { font-size: 1rem; font-weight: 700; line-height: 1.3; }
+
+    .price-row { display: flex; align-items: center; gap: .55rem; flex-wrap: wrap; margin-top: auto; }
+    .price-sale { font-size: 1.3rem; font-weight: 800; color: #1a1a1a; }
+    .price-orig { font-size: .85rem; color: #999; text-decoration: line-through; }
+    .price-disc {
+      font-size: .75rem;
+      font-weight: 700;
+      background: #dcfce7;
+      color: #16a34a;
+      padding: .15rem .4rem;
+      border-radius: 4px;
+    }
+
+    .card-link {
+      display: block;
+      margin-top: .5rem;
+      text-align: center;
+      padding: .55rem;
+      border-radius: 8px;
+      border: 1.5px solid #e5e5e5;
+      font-size: .82rem;
+      font-weight: 600;
+      color: #444;
+      text-decoration: none;
+      transition: background .12s, border-color .12s;
+    }
+    .card-link:hover { background: #f5f5f0; border-color: #bbb; }
+
+    /* ── SECTION HEADERS ─────────────────────────── */
+    .section-header {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: .75rem 0 .25rem;
+    }
+    .section-header h2 { font-size: 1.1rem; font-weight: 800; white-space: nowrap; }
+    .section-header .line { flex: 1; height: 2px; background: #e5e5e5; border-radius: 1px; }
+    .section-header .count { font-size: .8rem; color: #999; font-weight: 600; }
+
+    /* ── FOOTER ──────────────────────────────────── */
+    footer {
+      text-align: center;
+      padding: 1.5rem;
+      font-size: .8rem;
+      color: #aaa;
+      background: #1a1a1a;
+    }
+
+    /* ── HIDDEN ──────────────────────────────────── */
+    .card.hidden { display: none; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Move-Out Sale</h1>
+  <p>Everything must go &mdash; all items available for pickup in the Boston area</p>
+</header>
+
+<nav class="filters" aria-label="Filter by category">
+  <button class="filter-btn active" data-cat="All">All items</button>
+  <button class="filter-btn" data-cat="Work">&#128187; Work</button>
+  <button class="filter-btn" data-cat="Bedroom">&#128719; Bedroom</button>
+  <button class="filter-btn" data-cat="Living">&#128715; Living &amp; Dining</button>
+  <button class="filter-btn" data-cat="Kitchen">&#127859; Kitchen</button>
+</nav>
+
+<main class="grid" id="grid">
+
+  <!-- ═══════════ WORK ═══════════ -->
+  <div class="section-header" data-section="Work">
+    <h2>&#128187; Work</h2>
+    <div class="line"></div>
+    <span class="count" id="count-Work"></span>
+  </div>
+
+  <!-- To mark as SOLD: change data-sold="false" to data-sold="true" -->
+  <article class="card" data-cat="Work" data-sold="false">
+    <img class="card-img" src="images/image1.png" alt="IKEA Alex Desk" loading="lazy">
+    <div class="card-body">
+      <span class="badge badge-Work">Work</span>
+      <p class="card-title">IKEA Alex Desk</p>
+      <div class="price-row">
+        <span class="price-sale">$50</span>
+        <span class="price-orig">$200</span>
+        <span class="price-disc">-75%</span>
+      </div>
+      <a class="card-link" href="https://www.ikea.com/us/en/p/alex-desk-white-10473555/" target="_blank" rel="noopener noreferrer">View original listing &#8599;</a>
+    </div>
+  </article>
+
+  <!-- To mark as SOLD: change data-sold="false" to data-sold="true" -->
+  <article class="card" data-cat="Work" data-sold="false">
+    <img class="card-img" src="images/image2.png" alt="NÄVLINGE Work Lamp" loading="lazy">
+    <div class="card-body">
+      <span class="badge badge-Work">Work</span>
+      <p class="card-title">N&Auml;VLINGE Work Lamp</p>
+      <div class="price-row">
+        <span class="price-sale">$10</span>
+        <span class="price-orig">$25</span>
+        <span class="price-disc">-60%</span>
+      </div>
+      <a class="card-link" href="https://www.ikea.com/us/en/p/naevlinge-led-work-lamp-black-40404914/" target="_blank" rel="noopener noreferrer">View original listing &#8599;</a>
+    </div>
+  </article>
+
+  <!-- To mark as SOLD: change data-sold="false" to data-sold="true" -->
+  <article class="card" data-cat="Work" data-sold="false">
+    <img class="card-img" src="images/image3.png" alt="Steelcase Amia Chair" loading="lazy">
+    <div class="card-body">
+      <span class="badge badge-Work">Work</span>
+      <p class="card-title">Steelcase Amia Chair</p>
+      <div class="price-row">
+        <span class="price-sale">$100</span>
+        <span class="price-orig">$1,000</span>
+        <span class="price-disc">-90%</span>
+      </div>
+    </div>
+  </article>
+
+  <!-- ═══════════ BEDROOM ═══════════ -->
+  <div class="section-header" data-section="Bedroom">
+    <h2>&#128719; Bedroom</h2>
+    <div class="line"></div>
+    <span class="count" id="count-Bedroom"></span>
+  </div>
+
+  <!-- To mark as SOLD: change data-sold="false" to data-sold="true" -->
+  <article class="card" data-cat="Bedroom" data-sold="false">
+    <img class="card-img" src="images/image4.png" alt="Casper Mattress Queen" loading="lazy">
+    <div class="card-body">
+      <span class="badge badge-Bedroom">Bedroom</span>
+      <p class="card-title">Casper Mattress Queen (+bed frame)</p>
+      <div class="price-row">
+        <span class="price-sale">$300</span>
+        <span class="price-orig">$1,500</span>
+        <span class="price-disc">-80%</span>
+      </div>
+      <a class="card-link" href="https://casper.com/mattresses/original-hybrid-v1.html" target="_blank" rel="noopener noreferrer">View original listing &#8599;</a>
+    </div>
+  </article>
+
+  <!-- To mark as SOLD: change data-sold="false" to data-sold="true" -->
+  <article class="card" data-cat="Bedroom" data-sold="false">
+    <img class="card-img" src="images/image5.png" alt="DreamCloud Mattress King" loading="lazy">
+    <div class="card-body">
+      <span class="badge badge-Bedroom">Bedroom</span>
+      <p class="card-title">DreamCloud Mattress King (+bed frame)</p>
+      <div class="price-row">
+        <span class="price-sale">$200</span>
+        <span class="price-orig">$900</span>
+        <span class="price-disc">-78%</span>
+      </div>
+      <a class="card-link" href="https://www.dreamcloudsleep.com/mattress/king" target="_blank" rel="noopener noreferrer">View original listing &#8599;</a>
+    </div>
+  </article>
+
+  <!-- To mark as SOLD: change data-sold="false" to data-sold="true" -->
+  <article class="card" data-cat="Bedroom" data-sold="false">
+    <img class="card-img" src="images/image6.png" alt="Tower Fan" loading="lazy">
+    <div class="card-body">
+      <span class="badge badge-Bedroom">Bedroom</span>
+      <p class="card-title">Tower Fan</p>
+      <div class="price-row">
+        <span class="price-sale">$20</span>
+        <span class="price-orig">$100</span>
+        <span class="price-disc">-80%</span>
+      </div>
+      <a class="card-link" href="https://www.wayfair.com/home-improvement/pdp/air-king-42-oscillating-tower-fan-unw10022.html" target="_blank" rel="noopener noreferrer">View original listing &#8599;</a>
+    </div>
+  </article>
+
+  <!-- To mark as SOLD: change data-sold="false" to data-sold="true" -->
+  <article class="card" data-cat="Bedroom" data-sold="false">
+    <img class="card-img" src="images/image7.png" alt="Dresser" loading="lazy">
+    <div class="card-body">
+      <span class="badge badge-Bedroom">Bedroom</span>
+      <p class="card-title">Dresser</p>
+      <div class="price-row">
+        <span class="price-sale">$30</span>
+        <span class="price-orig">$250</span>
+        <span class="price-disc">-88%</span>
+      </div>
+      <a class="card-link" href="https://www.walmart.com/ip/Pellebant-9-Drawers-Fabric-Steel-Extra-Wide-Dresser-Storage-Tower-in-Gray/688932048" target="_blank" rel="noopener noreferrer">View original listing &#8599;</a>
+    </div>
+  </article>
+
+  <!-- ═══════════ LIVING & DINING ═══════════ -->
+  <div class="section-header" data-section="Living">
+    <h2>&#128715; Living &amp; Dining Room</h2>
+    <div class="line"></div>
+    <span class="count" id="count-Living"></span>
+  </div>
+
+  <!-- To mark as SOLD: change data-sold="false" to data-sold="true" -->
+  <article class="card" data-cat="Living" data-sold="false">
+    <img class="card-img" src="images/image8.png" alt="TCL Roku TV 49 inch" loading="lazy">
+    <div class="card-body">
+      <span class="badge badge-Living">Living &amp; Dining</span>
+      <p class="card-title">TCL Roku TV 49&Prime;</p>
+      <div class="price-row">
+        <span class="price-sale">$70</span>
+        <span class="price-orig">$200</span>
+        <span class="price-disc">-65%</span>
+      </div>
+    </div>
+  </article>
+
+  <!-- To mark as SOLD: change data-sold="false" to data-sold="true" -->
+  <article class="card" data-cat="Living" data-sold="false">
+    <img class="card-img" src="images/image9.png" alt="4 Bar Stools IKEA Janinge" loading="lazy">
+    <div class="card-body">
+      <span class="badge badge-Living">Living &amp; Dining</span>
+      <p class="card-title">4 Bar Stools IKEA Janinge</p>
+      <div class="price-row">
+        <span class="price-sale">$160</span>
+        <span class="price-orig">$700</span>
+        <span class="price-disc">-77%</span>
+      </div>
+      <a class="card-link" href="https://www.ikea.com/us/en/p/janinge-bar-stool-gray-10281354/" target="_blank" rel="noopener noreferrer">View original listing &#8599;</a>
+    </div>
+  </article>
+
+  <!-- To mark as SOLD: change data-sold="false" to data-sold="true" -->
+  <article class="card" data-cat="Living" data-sold="false">
+    <img class="card-img" src="images/image10.png" alt="1 Bar Stool IKEA Lidkullen" loading="lazy">
+    <div class="card-body">
+      <span class="badge badge-Living">Living &amp; Dining</span>
+      <p class="card-title">1 Bar Stool IKEA Lidkullen</p>
+      <div class="price-row">
+        <span class="price-sale">$40</span>
+        <span class="price-orig">$150</span>
+        <span class="price-disc">-73%</span>
+      </div>
+      <a class="card-link" href="https://www.ikea.com/us/en/p/lidkullen-sit-stand-support-gunnared-dark-gray-50445787/" target="_blank" rel="noopener noreferrer">View original listing &#8599;</a>
+    </div>
+  </article>
+
+  <!-- To mark as SOLD: change data-sold="false" to data-sold="true" -->
+  <article class="card" data-cat="Living" data-sold="false">
+    <img class="card-img" src="images/image11.png" alt="2 Standing Lamps" loading="lazy">
+    <div class="card-body">
+      <span class="badge badge-Living">Living &amp; Dining</span>
+      <p class="card-title">2 Standing Lamps</p>
+      <div class="price-row">
+        <span class="price-sale">$20</span>
+        <span class="price-orig">$60</span>
+        <span class="price-disc">-67%</span>
+      </div>
+    </div>
+  </article>
+
+  <!-- To mark as SOLD: change data-sold="false" to data-sold="true" -->
+  <article class="card" data-cat="Living" data-sold="false">
+    <img class="card-img" src="images/image12.png" alt="Couch" loading="lazy">
+    <div class="card-body">
+      <span class="badge badge-Living">Living &amp; Dining</span>
+      <p class="card-title">Couch</p>
+      <div class="price-row">
+        <span class="price-sale">$80</span>
+        <span class="price-orig">$400</span>
+        <span class="price-disc">-80%</span>
+      </div>
+    </div>
+  </article>
+
+  <!-- To mark as SOLD: change data-sold="false" to data-sold="true" -->
+  <article class="card" data-cat="Living" data-sold="false">
+    <img class="card-img" src="images/image13.png" alt="Lazy Chair" loading="lazy">
+    <div class="card-body">
+      <span class="badge badge-Living">Living &amp; Dining</span>
+      <p class="card-title">Lazy Chair</p>
+      <div class="price-row">
+        <span class="price-sale">$50</span>
+        <span class="price-orig">$300</span>
+        <span class="price-disc">-83%</span>
+      </div>
+    </div>
+  </article>
+
+  <!-- To mark as SOLD: change data-sold="false" to data-sold="true" -->
+  <article class="card" data-cat="Living" data-sold="false">
+    <img class="card-img" src="images/image14.png" alt="Light Grey Sofabed with Quilt" loading="lazy">
+    <div class="card-body">
+      <span class="badge badge-Living">Living &amp; Dining</span>
+      <p class="card-title">Light Grey Sofabed (convertible) with Quilt</p>
+      <div class="price-row">
+        <span class="price-sale">$50</span>
+        <span class="price-orig">$180</span>
+        <span class="price-disc">-72%</span>
+      </div>
+    </div>
+  </article>
+
+  <!-- To mark as SOLD: change data-sold="false" to data-sold="true" -->
+  <article class="card" data-cat="Living" data-sold="false">
+    <img class="card-img" src="images/image15.png" alt="Coffee Table Round" loading="lazy">
+    <div class="card-body">
+      <span class="badge badge-Living">Living &amp; Dining</span>
+      <p class="card-title">Coffee Table Round</p>
+      <div class="price-row">
+        <span class="price-sale">$15</span>
+        <span class="price-orig">$60</span>
+        <span class="price-disc">-75%</span>
+      </div>
+      <a class="card-link" href="https://us.amazon.com/dp/B0DP2JP8NP" target="_blank" rel="noopener noreferrer">View original listing &#8599;</a>
+    </div>
+  </article>
+
+  <!-- To mark as SOLD: change data-sold="false" to data-sold="true" -->
+  <article class="card" data-cat="Living" data-sold="false">
+    <img class="card-img" src="images/image16.png" alt="IKEA Kallax Shelf Unit" loading="lazy">
+    <div class="card-body">
+      <span class="badge badge-Living">Living &amp; Dining</span>
+      <p class="card-title">IKEA Kallax Shelf Unit</p>
+      <div class="price-row">
+        <span class="price-sale">$50</span>
+        <span class="price-orig">$239</span>
+        <span class="price-disc">-79%</span>
+      </div>
+      <a class="card-link" href="https://www.ikea.com/us/en/p/kallax-shelving-unit-with-6-inserts-white-s29278262/" target="_blank" rel="noopener noreferrer">View original listing &#8599;</a>
+    </div>
+  </article>
+
+  <!-- ═══════════ KITCHEN ═══════════ -->
+  <div class="section-header" data-section="Kitchen">
+    <h2>&#127859; Kitchen</h2>
+    <div class="line"></div>
+    <span class="count" id="count-Kitchen"></span>
+  </div>
+
+  <!-- To mark as SOLD: change data-sold="false" to data-sold="true" -->
+  <article class="card" data-cat="Kitchen" data-sold="false">
+    <img class="card-img" src="images/image17.png" alt="Toaster Oven Black+Decker" loading="lazy">
+    <div class="card-body">
+      <span class="badge badge-Kitchen">Kitchen</span>
+      <p class="card-title">Toaster Oven Black+Decker</p>
+      <div class="price-row">
+        <span class="price-sale">$10</span>
+        <span class="price-orig">$40</span>
+        <span class="price-disc">-75%</span>
+      </div>
+      <a class="card-link" href="https://www.target.com/p/black-decker-4-slice-toaster-oven-silver-to1700sg/-/A-50939812" target="_blank" rel="noopener noreferrer">View original listing &#8599;</a>
+    </div>
+  </article>
+
+  <!-- To mark as SOLD: change data-sold="false" to data-sold="true" -->
+  <article class="card" data-cat="Kitchen" data-sold="false">
+    <img class="card-img" src="images/image18.png" alt="Dining Set" loading="lazy">
+    <div class="card-body">
+      <span class="badge badge-Kitchen">Kitchen</span>
+      <p class="card-title">Dining Set &mdash; 4 chairs (1 needs minor fixing)</p>
+      <div class="price-row">
+        <span class="price-sale">$40</span>
+        <span class="price-orig">$400</span>
+        <span class="price-disc">-90%</span>
+      </div>
+      <a class="card-link" href="https://www.wayfair.com/furniture/pdp/george-oliver-jazabella-round-354-dining-set-w100576446.html" target="_blank" rel="noopener noreferrer">View original listing &#8599;</a>
+    </div>
+  </article>
+
+</main>
+
+<footer>
+  All items available for local pickup &bull; Prices firm &bull; First come, first served
+</footer>
+
+<script>
+  // ── Category filter ──────────────────────────────────────────────────────
+  const buttons = document.querySelectorAll('.filter-btn');
+  const cards   = document.querySelectorAll('.card');
+  const headers = document.querySelectorAll('.section-header');
+
+  function updateCounts(active) {
+    ['Work','Bedroom','Living','Kitchen'].forEach(cat => {
+      const total = document.querySelectorAll(`.card[data-cat="${cat}"]`).length;
+      const sold  = document.querySelectorAll(`.card[data-cat="${cat}"][data-sold="true"]`).length;
+      const el = document.getElementById('count-' + cat);
+      if (el) el.textContent = sold ? `${total - sold} available · ${sold} sold` : `${total} items`;
+    });
+  }
+
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      buttons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const cat = btn.dataset.cat;
+
+      cards.forEach(card => {
+        card.classList.toggle('hidden', cat !== 'All' && card.dataset.cat !== cat);
+      });
+      headers.forEach(h => {
+        h.classList.toggle('hidden', cat !== 'All' && h.dataset.section !== cat);
+      });
+    });
+  });
+
+  updateCounts();
+</script>
+</body>
+</html>
